@@ -100,43 +100,45 @@ const deleteCategory = async (req, res, next) => {
 
 }
 
-const updateCategory = (req, res, next) => {
-    if (req.user.role === 'admin') {
-        const { name, image } = req.body;
-        Category.findOneAndUpdate(
-            { _id: req.params.id },
-            {
-                $set: {
-                    name: name,
-                    slug: slugify(removeAccents(name)),
-                    image: image
-                }
-            }, { new: true }
-        )
-            .then((result) => {
-                return res.status(200).json(result);
-            }).catch((err) => {
-                res.status(500).json({
-                    error: err
-                });
-            });
+const updateCategory = async (req, res, next) => {
+    const { name, image } = req.body;
+    try {
+        if (req.user.role === 'admin') {
+            const result = await Category.findOneAndUpdate(
+                { _id: req.params.id },
+                {
+                    $set: {
+                        name: name,
+                        slug: slugify(removeAccents(name)),
+                        image: image
+                    }
+                }, { new: true }
+            );
+            return res.status(200).json(result);
+        }
+    } catch (error) {
+        next(error);
     }
 }
 
 const search = async (req, res, next) => {
     const { search } = req.body;
-    let result = await Category.find({
-        name: { $regex: search, $options: "$i" },
-    });
-    return res.status(200).json(result);
+    try {
+        let result = await Category.find({
+            name: { $regex: search, $options: "$i" },
+        });
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
 }
 
 module.exports = {
-    getCategories: getCategories,
-    postCategory: postCategory,
-    getCategory: getCategory,
-    deleteCategory: deleteCategory,
-    updateCategory: updateCategory,
-    search: search
+    getCategories,
+    postCategory,
+    getCategory,
+    deleteCategory,
+    updateCategory,
+    search,
 }
 
