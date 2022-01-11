@@ -16,7 +16,7 @@ const encodeToken = (userID) => {
     );
 };
 
-const signupAdmin = (req, res, next) => {
+const signupAdmin = async (req, res, next) => {
     const dataErrors = validationResult(req);
     let errors = [];
     if (!dataErrors.isEmpty()) {
@@ -27,34 +27,28 @@ const signupAdmin = (req, res, next) => {
     }
 
     const { name, email, password, avatar } = req.body;
-    User.findOne({ email: email })
-        .then((result) => {
-            if (result) {
-                return res.status(404).json({
-                    error: "Email đã tồn tại!!!",
-                    success: false
-                });
-            } else {
-                const newAdmin = new User({
-                    name,
-                    email,
-                    password,
-                    role: "admin",
-                    avatar: avatar
-                });
-                newAdmin.save().then((result) => {
-                    result.password = undefined;
-                    return res
-                        .status(201)
-                        .json({ message: "Sign in success!!!", user: result, success: true });
-                });
-            }
-        })
-        .catch((err) => {
-            res.status(500).json({
-                error: err,
-            });
+    try {
+        const user = await User.findOne({ email });
+        if (user) {
+            return res.status(409).json({
+                msg: 'Email exist!'
+            })
+        }
+        const newAdmin = new User({
+            name,
+            email,
+            password,
+            role: "admin",
+            avatar: avatar
         });
+        await newAdmin.save();
+        newAdmin.password = undefined;
+        return res.status(201).json({
+            message: "Sign in success!!!", user: result, success: true
+        })
+    } catch (error) {
+        next(error);
+    }
 };
 
 const signinAdmin = (req, res, next) => {
