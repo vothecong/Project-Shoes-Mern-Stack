@@ -429,16 +429,16 @@ const homeAccount = async (req, res, next) => {
 }
 
 module.exports = {
-    signinAdmin: signinAdmin,
-    signupAdmin: signupAdmin,
-    getAccountAdmin: getAccountAdmin,
-    signinUser: signinUser,
-    signupUser: signupUser,
-    updateInfoCustomer: updateInfoCustomer,
-    updateAvatar: updateAvatar,
-    getOrderByCustomer: getOrderByCustomer,
-    siginGoogle: siginGoogle,
-    siginFacebook: siginFacebook,
-    homeAccount: homeAccount,
-    updateAccountAdmin: updateAccountAdmin
+    signinAdmin,
+    signupAdmin,
+    getAccountAdmin,
+    signinUser,
+    signupUser,
+    updateInfoCustomer,
+    updateAvatar,
+    getOrderByCustomer,
+    siginGoogle,
+    siginFacebook,
+    homeAccount,
+    updateAccountAdmin
 };

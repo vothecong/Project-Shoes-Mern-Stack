@@ -1,6 +1,5 @@
 const router = require("express").Router();
 const { review } = require("../controllers");
-const Product = require("../models/ProductModel");
 
 router.route('/')
     .get(review.getAllReview)

@@ -64,26 +64,20 @@ const postCart = async (req, res, next) => {
             });
         }
     } catch (error) {
-        res.status(500).json({
-            error: {
-                message: error.message
-            }
-        })
+        next(error);
     }
 };
 
-const getCarts = (req, res, next) => {
-    Cart.find()
-        .then((result) => {
-            return res.status(200).json(result);
-        }).catch((err) => {
-            res.status(500).json({
-                error: { message: err.message }
-            })
-        });
+const getCarts = async (req, res, next) => {
+    try {
+        const carts = await Cart.find();
+        return res.status(200).json({ carts });
+    } catch (error) {
+        next(error);
+    }
 }
 
 module.exports = {
-    postCart: postCart,
+    postCart,
     getCarts
 };

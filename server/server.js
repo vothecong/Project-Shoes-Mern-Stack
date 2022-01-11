@@ -20,6 +20,8 @@ mongoose.connect(
     {
         useNewUrlParser: true,
         useUnifiedTopology: true,
+        useCreateIndex: true,
+        useFindAndModify: true
     },
     (err) => {
         if (err) {
@@ -31,13 +33,10 @@ mongoose.connect(
 );
 
 mongoose.Promise = global.Promise;
-mongoose.set("useCreateIndex", true);
-mongoose.set("useFindAndModify", false);
-//khai báo để lấy nội dung về từ khác client
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(express.json());
-app.use(cors());//
+app.use(cors()); //
 app.use(morgan("dev"));
 app.use("/uploads", express.static("uploads"));
 
@@ -61,14 +60,11 @@ app.use((req, res, next) => {
 });
 
 app.use((error, req, res, next) => {
-    res.status(error.status || 500);
-    res.json({
-        error: {
-            message: error.message,
-        },
+    res.status(error.status || 500).json({
+        message: error.message,
     });
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is running with PORT=${PORT}`);
+    console.log(`Server is running with http://localhost:${PORT}`);
 });
