@@ -3,222 +3,188 @@ const Review = require("../models/ReviewModel");
 const { removeAccents } = require("../configs/CONFIGS");
 const slugify = require("slugify");
 
-const getProducts = (req, res, next) => {
-    Product.find({})
-        .populate("categoryID", "_id name image slug")
-        .sort({ createdAt: -1 })
-        .then((result) => {
-            return res.status(200).json(result);
-        })
-        .catch((err) => {
-            res.status(500).json({
-                error: err,
-            });
-        });
+const getProducts = async (req, res, next) => {
+    try {
+        const products = await Product.find({})
+            .populate("categoryID", "_id name image slug")
+            .sort({ createdAt: -1 });
+
+        return res.status(200).json(products);
+    } catch (error) {
+        next(error);
+    }
 };
 
 const postProduct = (req, res, next) => {
-    if (req.user.role === "admin") {
-        const { name, sizes, price, pictures, categoryById } = req.body;
-        Product.findOne({ slug: slugify(removeAccents(name)) })
-            .then((result) => {
-                if (result) {
-                    return res.status(400).json({
-                        error: "Sản phẩm đã tồn tại!!!",
-                    });
-                } else {
-                    const listsizes = [];
-                    sizes.map((item) =>
-                        listsizes.push({
-                            name: item.nameSize,
-                            count: parseInt(item.count, 10),
-                        })
-                    );
-                    let images = [];
-                    pictures.map((item) => {
-                        images.push({
-                            id: item.id,
-                            img: item.img,
-                        });
-                    });
-                    const newProduct = new Product({
-                        name,
-                        slug: slugify(removeAccents(name)),
-                        images: pictures,
-                        sizes: listsizes,
-                        price: parseInt(price, 10),
-                        categoryID: categoryById,
-                    });
-                    // console.log("newProduct", newProduct);
-                    newProduct.save().then((result) => {
-                        return res.status(201).json(result);
-                    });
-                }
-            })
-            .catch((err) => {
-                res.status(500).json({
-                    error: err,
-                });
+    if (req.user.role !== "admin") {
+        return res.status(401).json({
+            msg: "Unauthorized",
+        });
+    }
+    const { name, sizes, price, pictures, categoryById } = req.body;
+    try {
+        const product = await Product.findOne({
+            slug: slugify(removeAccents(name)),
+        });
+        if (product) {
+            return res.status(400).json({
+                error: "Sản phẩm đã tồn tại!!!",
             });
+        }
+        const listsizes = [];
+        sizes.map((item) =>
+            listsizes.push({
+                name: item.nameSize,
+                count: parseInt(item.count, 10),
+            })
+        );
+        let images = [];
+        pictures.map((item) => {
+            images.push({
+                id: item.id,
+                img: item.img,
+            });
+        });
+        const newProduct = new Product({
+            name,
+            slug: slugify(removeAccents(name)),
+            images: pictures,
+            sizes: listsizes,
+            price: parseInt(price, 10),
+            categoryID: categoryById,
+        });
+        await newProduct.save();
+        return res.status(201).json(newProduct);
+    } catch (error) {
+        next(error);
     }
 };
 
 const deleteProduct = async (req, res, next) => {
-    if (req.user.role === "admin") {
-        try {
-            const product = await Product.findOne({ _id: req.params.id });
-            if (!product) {
-                return res.status(404).json({
-                    error: "Không tìm thấy sản phẩm!!!",
-                });
-            }
-            const result = await product.remove();
-            await Review.deleteMany({ productID: result._id });
-            return res.status(200).json(product);
-        } catch (error) {
-            res.status(500).json({
-                error: error,
+    if (req.user.role !== "admin") {
+        return res.status(401).json({
+            msg: "Unauthorized",
+        });
+    }
+    try {
+        const product = await Product.findOne({ _id: req.params.id });
+        if (!product) {
+            return res.status(404).json({
+                error: "Không tìm thấy sản phẩm!!!",
             });
         }
+        const result = await product.remove();
+        await Review.deleteMany({ productID: result._id });
+        return res.status(200).json(product);
+    } catch (error) {
+        next(error);
     }
 };
 
-const getProduct = (req, res, next) => {
-    Product.findById({ _id: req.params.id })
-        .populate("categoryID", "name")
-        .then((result) => {
-            return res.status(200).json(result);
-        })
-        .catch((err) => {
-            res.status(500).json({
-                error: err,
-            });
-        });
+const getProduct = async (req, res, next) => {
+    try {
+        const product = await Product.findById({ _id: req.params.id }).populate(
+            "categoryID",
+            "name"
+        );
+        return res.status(200).json(product);
+    } catch (error) {
+        next(error);
+    }
 };
 
-const updateProduct = (req, res, next) => {
-    if (req.user.role === "admin") {
-        const { name, sizes, price, pictures } = req.body;
-        Product.findOne({ _id: req.params.id })
-            .then((result) => {
-                if (result) {
-                    let newImages = [];
-                    if (pictures.length > 0) {
-                        pictures.forEach((x) => {
-                            newImages.push({
-                                id: x.id,
-                                img: x.img,
-                            });
-                        });
-                    }
-
-                    if (sizes.length > 0) {
-                        sizes.forEach((xx) => {
-                            const index = result.sizes.findIndex(
-                                (xy) => xy._id == xx.nameSize
-                            );
-                            result.sizes[index].count = parseInt(xx.count, 10);
-                        });
-                    }
-
-                    Product.findOneAndUpdate(
-                        {
-                            _id: req.params.id,
-                        },
-                        {
-                            $set: {
-                                name: name,
-                                slug: slugify(removeAccents(name)),
-                                price: parseInt(price, 10),
-                                sizes: result.sizes,
-                                images: newImages,
-                            },
-                        },
-                        { new: true }
-                    )
-                        .populate("categoryID", "name")
-                        .then((result) => {
-                            return res.status(200).json(result);
-                        });
-                }
-            })
-            .catch((err) => {
-                res.status(500).json({
-                    error: err,
+const updateProduct = async (req, res, next) => {
+    if (req.user.role !== "admin") {
+        return res.status(401).json({
+            msg: "Unauthorized",
+        });
+    }
+    const { name, sizes, price, pictures } = req.body;
+    try {
+        const product = await Product.findOne({ _id: req.params.id });
+        let newImages = [];
+        if (pictures.length > 0) {
+            pictures.forEach((x) => {
+                newImages.push({
+                    id: x.id,
+                    img: x.img,
                 });
             });
+        }
+
+        if (sizes.length > 0) {
+            sizes.forEach((xx) => {
+                const index = product.sizes.findIndex((xy) => xy._id == xx.nameSize);
+                product.sizes[index].count = parseInt(xx.count, 10);
+            });
+        }
+
+        const result = await Product.findOneAndUpdate(
+            { _id: req.params.id },
+            {
+                $set: {
+                    name: name,
+                    slug: slugify(removeAccents(name)),
+                    price: parseInt(price, 10),
+                    sizes: result.sizes,
+                    images: newImages,
+                },
+            },
+            { new: true }
+        ).populate("categoryID", "name");
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
     }
 };
 
-const getProductByCategory = (req, res, next) => {
-    Product.find({ categoryID: req.params.categoryID })
-        .populate("categoryID")
-        .then((result) => {
-            return res.status(200).json(result);
-        })
-        .catch((err) => {
-            res.status(500).json({
-                error: err,
-            });
-        });
+const getProductByCategory = async (req, res, next) => {
+    try {
+        const result = await Product.find({
+            categoryID: req.params.categoryID,
+        }).populate("categoryID");
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
 };
 
 const search = async (req, res, next) => {
-    // console.log("req.body", req.body);
     const { search } = req.body;
     try {
         let result = await Product.find({
             name: { $regex: search, $options: "$i" },
         });
-        // console.log("result by search", result);
         return res.status(200).json({ product: result, success: true });
     } catch (error) {
-        res.status(500).json({
-            error: {
-                message: error.message,
-            },
-        });
+        next(error);
     }
 };
 
-const searchSizeProduct = (req, res, next) => {
-    console.log(req.body);
+const searchSizeProduct = async (req, res, next) => {
     const { name, id } = req.body;
-    if (name === "all") {
-        Product.find({
-            categoryID: id,
-        })
-            .then((result) => {
-                return res.status(200).json(result);
-            })
-            .catch((err) => {
-                res.status(500).json({ error: err });
+    try {
+        if (name === "all") {
+            const result = await Product.find({
+                categoryID: id,
             });
-    }
-    if (name !== "all") {
-        Product.find({
+            return res.status(200).json(result);
+        }
+        const result = await Product.find({
             categoryID: id,
             sizes: {
                 $elemMatch: {
                     name: name,
                 },
             },
-        })
-            .then((result) => {
-                return res.status(200).json(result);
-            })
-            .catch((err) => {
-                res.status(500).json({ error: err });
-            });
+        });
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
     }
 };
 
 const sortProduct = async (req, res, next) => {
-    /**
-     * -1: sắp giảm dần
-     * 1: sắp tăng dần
-     */
-
     const { parameter, value, id } = req.body;
     if (parameter === "price") {
         Product.find({ categoryID: id })
@@ -241,47 +207,31 @@ const sortProduct = async (req, res, next) => {
                 return res.status(200).json(result);
             })
             .catch((err) => {
-                res.status(500).json({
-                    error: {
-                        message: err.message,
-                    },
-                });
+                next(err);
             });
     }
 };
 
-const filterProduct = (req, res, next) => {
-    console.log(req.body);
+const filterProduct = async (req, res, next) => {
     const { min, max, id } = req.body;
-    if (min === "ALL") {
-        Product.find({ categoryID: id })
-            .populate("categoryID", "name")
-            .then((result) => {
-                return res.status(200).json(result);
-            })
-            .catch((err) => {
-                res.status(500).json({
-                    error: err,
-                });
-            });
-    } else {
-        Product.find({
+    try {
+        if (min === "ALL") {
+            const result = await Product.find({ categoryID: id }).populate(
+                "categoryID",
+                "name"
+            );
+            return res.status(200).json(result);
+        }
+        const result = await Product.find({
             categoryID: id,
             price: {
                 $gte: parseInt(min, 10),
                 $lte: parseInt(max, 10),
             },
-        })
-            .then((result) => {
-                return res.status(200).json(result);
-            })
-            .catch((err) => {
-                res.status(500).json({
-                    error: {
-                        message: err.message,
-                    },
-                });
-            });
+        });
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
     }
 };
 
@@ -302,23 +252,20 @@ const getProductBySlug = (req, res, next) => {
 
 const relatedProducts = (req, res, next) => {
     const { typeById, id } = req.body;
-    Product.find({ categoryID: typeById, _id: { $ne: id } })
-        .populate("categoryID")
-        .then((data) => {
-            if (data) {
-                const result = data.sort(() => {
-                    return .5 - Math.random()
-                }).slice(0, 4);
-                return res.status(200).json(result);
-            }
-        })
-        .catch((err) => {
-            res.status(500).json({
-                error: {
-                    message: err.message,
-                },
-            });
-        });
+    try {
+        const product = await Product.find({
+            categoryID: typeById,
+            _id: { $ne: id },
+        }).populate("categoryID");
+        const result = product
+            .sort(() => {
+                return 0.5 - Math.random();
+            })
+            .slice(0, 4);
+        return res.status(200).json(result);
+    } catch (error) {
+        next(error);
+    }
 };
 
 const homeProduct = async (req, res, next) => {
@@ -346,49 +293,24 @@ const getPageHomeClient = async (req, res, next) => {
         const result = await Product.find({ categoryID: id });
         console.log("result", result);
         return res.status(200).json({ products: result, success: true });
-
     } catch (error) {
-        res.status(500).json({
-            error: {
-                message: error.message,
-            },
-        });
+        next(error);
     }
 };
 
 module.exports = {
-    search: search,
-    getProducts: getProducts,
-    postProduct: postProduct,
-    deleteProduct: deleteProduct,
-    getProduct: getProduct,
-    updateProduct: updateProduct,
-    getProductByCategory: getProductByCategory,
-    searchSizeProduct: searchSizeProduct,
-    sortProduct: sortProduct,
-    filterProduct: filterProduct,
-    getProductBySlug: getProductBySlug,
-    relatedProducts: relatedProducts,
-    homeProduct: homeProduct,
-    getPageHomeClient: getPageHomeClient,
+    search,
+    getProducts,
+    postProduct,
+    deleteProduct,
+    getProduct,
+    updateProduct,
+    getProductByCategory,
+    searchSizeProduct,
+    sortProduct,
+    filterProduct,
+    getProductBySlug,
+    relatedProducts,
+    homeProduct,
+    getPageHomeClient,
 };
-// const getProductPagination = (req, res, next) => {
-//     /**
-//      * (trangdangxem-1)*sosanphamtren1trang
-//      */
-//     const SoSP1Page = 6;
-//     let { page } = req.params;
-//     console.log("page", page);
-//     let pageNumber = page ? parseInt(page, 10) : 1;
-//     let skip = (pageNumber - 1) * SoSP1Page;
-//     Product.find()
-//         .skip(skip)
-//         .limit(SoSP1Page)
-//         .populate("categoryID", "_id name image")
-//         .then((result) => {
-//             return res.status(200).json(result);
-//         })
-//         .catch((err) => {
-//             res.status(500).json({ error: err });
-//         });
-// };

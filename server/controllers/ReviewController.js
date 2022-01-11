@@ -3,15 +3,8 @@ const Product = require("../models/ProductModel");
 
 const postReview = async (req, res, next) => {
   try {
-    const {
-      name,
-      email,
-      contentReview,
-      countRating,
-      id,
-      userID,
-      avatar,
-    } = req.body.data;
+    const { name, email, contentReview, countRating, id, userID, avatar } =
+      req.body.data;
     const product = await Product.findOne({ _id: id });
     if (!product) {
       return res.status(404).json({
@@ -51,11 +44,7 @@ const postReview = async (req, res, next) => {
 
     return res.status(201).json({ result, data });
   } catch (error) {
-    res.status(500).json({
-      error: {
-        message: error.message,
-      },
-    });
+    next(error);
   }
 };
 
@@ -76,15 +65,11 @@ const getReview = async (req, res, next) => {
     }
     return res.status(200).json(reviews);
   } catch (error) {
-    res.status(500).json({
-      error: {
-        message: error.message,
-      },
-    });
+    next(error);
   }
 };
 
-const lastday = function (y, m) {
+function lastday(y, m) {
   return new Date(y, m + 1, 0).getDate();
 };
 
@@ -113,24 +98,18 @@ const getReviewHome = async (req, res, next) => {
     }).populate("productID", "name");
     return res.status(200).json(dataReview);
   } catch (error) {
-    res.status(500).json({
-      error: {
-        message: error.message,
-      },
-    });
+    next(error);
   }
 };
 
 const getAllReview = async (req, res, next) => {
   try {
-    const result = await Review.find({}).populate("productID", "name").sort({ createdAt: -1 });
+    const result = await Review.find({})
+      .populate("productID", "name")
+      .sort({ createdAt: -1 });
     return res.status(200).json(result);
   } catch (error) {
-    res.status(500).json({
-      error: {
-        message: error.message,
-      },
-    });
+    next(error);
   }
 };
 
@@ -170,18 +149,14 @@ const deleteReview = async (req, res, next) => {
     ).select("totalStar totalReview");
     return res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({
-      error: {
-        message: error.message,
-      },
-    });
+    next(error);
   }
 };
 
 module.exports = {
-  postReview: postReview,
-  getReview: getReview,
-  getReviewHome: getReviewHome,
-  getAllReview: getAllReview,
-  deleteReview: deleteReview,
+  postReview,
+  getReview,
+  getReviewHome,
+  getAllReview,
+  deleteReview,
 };
